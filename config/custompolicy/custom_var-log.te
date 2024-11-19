@@ -1,0 +1,30 @@
+#Should make it possible for user_u to access /var/log/ to list files when executing te.sh
+
+type selinux_tester_t;
+type test_script_t;
+
+# Next three rules should allow domain transition from user_t to selinux_tester_t using a file of type test_script_t
+# Allow transition
+allow user_t selinux_tester_t : process transition;
+
+# Allow execution of script
+allow user_t test_script_t : file { execute read getattr };
+allow selinux_tester_t test_script_t : file entrypoint;
+# TODO use a macro to define access
+
+# Define as files type, otherwise unexpected behaviour might result
+files_type( test_script_t );
+
+# Allow script access to commands
+allow selinux_tester_t { bin_t shell_exec_t user_home_t rpm_exec_t  } : file { execute read getattr };
+allow selinux_tester_t self : file { execute read getattr };
+
+# Allow access to /dev/null
+allow selinux_tester_t null_device_t : file write;
+
+# Allow access to log directory
+allow selinux_tester_t var_log_t : dir { read execute };
+
+# Domain transition
+type_transition user_t selinux_tester_t : process ext_gateway_t;
+

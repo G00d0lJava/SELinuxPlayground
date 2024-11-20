@@ -1,7 +1,29 @@
 #Should make it possible for user_u to access /var/log/ to list files when executing te.sh
 
+policy_module(custom_var-log, 1.0)
+
+gen_require(`
+	role user_r;
+	type user_t;
+	type bin_t;
+	type shell_exec_t;
+	type user_home_t;
+	type rpm_exec_t;
+	type null_device_t;
+	type var_log_t;
+	type ext_gateway_t;
+')
+
 type selinux_tester_t;
 type test_script_t;
+
+# Define as files type, otherwise unexpected behaviour might result
+files_type( test_script_t );
+# Define as domain type
+domain_type( selinux_tester_t );
+
+# Allow user_r to use selinux_tester_t as a domain
+role user_r types selinux_tester_t;
 
 # Next three rules should allow domain transition from user_t to selinux_tester_t using a file of type test_script_t
 # Allow transition
@@ -11,9 +33,6 @@ allow user_t selinux_tester_t : process transition;
 allow user_t test_script_t : file { execute read getattr };
 allow selinux_tester_t test_script_t : file entrypoint;
 # TODO use a macro to define access
-
-# Define as files type, otherwise unexpected behaviour might result
-files_type( test_script_t );
 
 # Allow script access to commands
 allow selinux_tester_t { bin_t shell_exec_t user_home_t rpm_exec_t  } : file { execute read getattr };

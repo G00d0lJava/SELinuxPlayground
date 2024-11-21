@@ -1,0 +1,13 @@
+[Unit]
+Description=Start restorecond in user mode
+Documentation=man:restorecond(8)
+ConditionPathExists=/etc/selinux/restorecond.conf
+ConditionSecurity=selinux
+
+[Service]
+Type=forking
+ExecStart=/usr/sbin/restorecond -u
+PIDFile=/run/restorecond.pid
+
+[Install]
+WantedBy=multi-user.target

@@ -5,7 +5,7 @@ if ! rpm -q setools-console > /dev/null || ! which seinfo > /dev/null ; then
 	echo "Error: Package setools-console not installed or command seinfo not found. Install the package via 'dnf install setools-console' or check path variable." >&2
 	exit 1
 fi
-
+echo 'rpm has run'
 # Type this script needs to work
 SE_TYPE='selinux_tester_t'
 
@@ -14,9 +14,10 @@ if seinfo -t "$SE_TYPE" | grep 'Types: 0' > /dev/null ; then
 	echo "Error: Type $SE_TYPE does not exist. Make sure the correct policy is loaded." >&2
 	exit 1
 fi
-
+echo 'seinfo has run'
 # Get own entry from ps
 PS_ENTRY="$( ps -eZ | grep -E "$$.*(${0##*/}|bash)"  )"
+echo 'ps has run'
 #echo "$PS_ENTRY"
 #echo "$$"
 #echo "${0#./}"
@@ -44,7 +45,9 @@ if ! [[ "$CONTEXT" =~ ".*$SE_TYPE.*" ]]; then
 	# Exit with error if domain change has already been tried
 	for arg in "$@"; do
 		if [ "$arg" = "--exec" ]; then
-			echo "Could not obtain correct domain. Make sure policy is loaded." >&2
+			CURRENT_DOMAIN="${CONTEXT%_t*}_t"
+			CURRENT_DOMAIN="${CURRENT_DOMAIN##*:}"
+			echo "Could not obtain correct domain. Current domain is ${CURRENT_DOMAIN}. Should be $SE_TYPE. Make sure policy is loaded." >&2
 			exit 1
 		fi
 	done

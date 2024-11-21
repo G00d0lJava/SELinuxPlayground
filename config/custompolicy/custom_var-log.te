@@ -11,7 +11,9 @@ gen_require(`
 	type rpm_exec_t;
 	type null_device_t;
 	type var_log_t;
-	type ext_gateway_t;
+	type user_devpts_t;
+	type user_home_dir_t;
+	type rpm_t;
 ')
 
 type selinux_tester_t;
@@ -23,27 +25,41 @@ files_type( test_script_t );
 domain_type( selinux_tester_t );
 
 # Allow user_r to use selinux_tester_t as a domain
-role user_r types selinux_tester_t;
+role user_r types { selinux_tester_t rpm_t };
 
 # Next three rules should allow domain transition from user_t to selinux_tester_t using a file of type test_script_t
 # Allow transition
 allow user_t selinux_tester_t : process transition;
 
 # Allow execution of script
-allow user_t test_script_t : file { execute read getattr };
-allow selinux_tester_t test_script_t : file entrypoint;
+allow user_t test_script_t : file { execute read getattr open };
+allow selinux_tester_t test_script_t : file { read execute entrypoint open getattr ioctl };
 # TODO use a macro to define access
 
 # Allow script access to commands
 allow selinux_tester_t { bin_t shell_exec_t user_home_t rpm_exec_t  } : file { execute read getattr };
 allow selinux_tester_t self : file { execute read getattr };
+# Allow domain transitions for rpm
+allow selinux_tester_t rpm_exec_t : file { open entrypoint };
+allow selinux_tester_t rpm_t : process transition;
+type_transition selinux_tester_t rpm_exec_t : process rpm_t;
+
+# Allow mapping memory
+
+allow selinux_tester_t shell_exec_t : file map;
 
 # Allow access to /dev/null
 allow selinux_tester_t null_device_t : file write;
+
+# Allow access to pts for echo
+allow selinux_tester_t user_devpts_t : chr_file { read write getattr ioctl };
+
+# Allow operations in home dirs
+allow selinux_tester_t user_home_dir_t : dir { read execute getattr search };
 
 # Allow access to log directory
 allow selinux_tester_t var_log_t : dir { read execute };
 
 # Domain transition
-type_transition user_t selinux_tester_t : process ext_gateway_t;
+type_transition user_t test_script_t : process selinux_tester_t;
 

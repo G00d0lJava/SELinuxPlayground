@@ -14,6 +14,12 @@ gen_require(`
 	type user_devpts_t;
 	type user_home_dir_t;
 	type rpm_t;
+	type proc_t;
+	type sysfs_t;
+	type devpts_t;
+	type auditd_log_t;
+	type passwd_file_t;
+	attribute logfile;
 ')
 
 type selinux_tester_t;
@@ -33,11 +39,12 @@ allow user_t selinux_tester_t : process transition;
 
 # Allow execution of script
 allow user_t test_script_t : file { execute read getattr open };
-allow selinux_tester_t test_script_t : file { read execute entrypoint open getattr ioctl };
+allow selinux_tester_t test_script_t : file { read execute execute_no_trans entrypoint open getattr ioctl };
 # TODO use a macro to define access
 
 # Allow script access to commands
 allow selinux_tester_t { bin_t shell_exec_t user_home_t rpm_exec_t  } : file { execute read getattr };
+allow selinux_tester_t bin_t : file execute_no_trans;
 allow selinux_tester_t self : file { execute read getattr };
 # Allow domain transitions for rpm
 allow selinux_tester_t rpm_exec_t : file { open entrypoint };
@@ -46,19 +53,34 @@ type_transition selinux_tester_t rpm_exec_t : process rpm_t;
 
 # Allow mapping memory
 
-allow selinux_tester_t shell_exec_t : file map;
+allow selinux_tester_t { shell_exec_t bin_t } : file map;
+
+# Allow querying processes
+allow selinux_tester_t { proc_t sysfs_t } : { file dir } read;
+allow selinux_tester_t proc_t : file open;
+allow selinux_tester_t { self user_t } : dir getattr;
+allow selinux_tester_t self : process getattr;
 
 # Allow access to /dev/null
 allow selinux_tester_t null_device_t : file write;
 
 # Allow access to pts for echo
 allow selinux_tester_t user_devpts_t : chr_file { read write getattr ioctl };
+# Really necessary?
+#allow selinux_tester_t devpts_t : dir { search getattr } ;
 
 # Allow operations in home dirs
 allow selinux_tester_t user_home_dir_t : dir { read execute getattr search };
 
 # Allow access to log directory
-allow selinux_tester_t var_log_t : dir { read execute };
+allow selinux_tester_t var_log_t : dir { read execute getattr };
+allow selinux_tester_t var_log_t : lnk_file { read getattr };
+allow selinux_tester_t { logfile auditd_log_t } : { dir file } getattr;
+# Allow reading passwd to get usernames
+allow selinux_tester_t passwd_file_t : file { read open};
+
+# Allow writing to home directory
+allow selinux_tester_t user_home_t : file write;
 
 # Domain transition
 type_transition user_t test_script_t : process selinux_tester_t;

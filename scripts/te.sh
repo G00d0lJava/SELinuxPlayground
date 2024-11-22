@@ -40,8 +40,10 @@ if [ -z "$CONTEXT" ]; then
 	exit 1
 fi
 
+echo "Context: '$CONTEXT'"
+echo "Needed type: '$SE_TYPE'"
 # Change own domain if domain is not correct
-if ! [[ "$CONTEXT" =~ ".*$SE_TYPE.*" ]]; then
+if ! [[ "$CONTEXT" =~ .*$SE_TYPE.* ]]; then
 	# Exit with error if domain change has already been tried
 	for arg in "$@"; do
 		if [ "$arg" = "--exec" ]; then

@@ -1,2 +1,4 @@
 /home/selinuxtester/te\.sh	--	gen_context(system_u:object_r:test_script_t,s0)
+/home/selinuxtester/scripts/te\.sh	--	gen_context(system_u:object_r:test_script_t,s0)
+/home/selinuxtester/scripts	-d	gen_context(system_u:object_r:test_script_dir_t,s0)
 

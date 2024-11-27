@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Check for seinfo
+# Check whether seinfo is installed
 if ! rpm -q setools-console > /dev/null || ! which seinfo > /dev/null ; then
 	echo "Error: Package setools-console not installed or command seinfo not found. Install the package via 'dnf install setools-console' or check path variable." >&2
 	exit 1
 fi
 echo 'rpm has run'
-# Type this script needs to work
+# SELinux type this script needs to work
 SE_TYPE='selinux_tester_t'
 
 # Check whether type exists
@@ -40,8 +40,11 @@ if [ -z "$CONTEXT" ]; then
 	exit 1
 fi
 
+# For debugging
+echo "ps entry: $PS_ENTRY"
 echo "Context: '$CONTEXT'"
 echo "Needed type: '$SE_TYPE'"
+
 # Change own domain if domain is not correct
 if ! [[ "$CONTEXT" =~ .*$SE_TYPE.* ]]; then
 	# Exit with error if domain change has already been tried
@@ -57,13 +60,15 @@ if ! [[ "$CONTEXT" =~ .*$SE_TYPE.* ]]; then
 	OWN_PATH="$( dirname "$( realpath $0  )"  )/${0##*/}"
 	# Get permissions of executable file
 	OWN_PERM="$( stat -c '%a' "$OWN_PATH"  )"
-	# Execute own file via bash or direct call depending on whether file is executable
+	# Execute own file or fail if not executable for others
 	EXECUTE_STATUS="${OWN_PERM:2:1}"
-	[ "$(( "$EXECUTE_STATUS" % 2  ))" -eq 1 ] && COMMAND_STR='' || COMMAND_STR='/usr/bin/bash '
-	COMMAND_STR+="$OWN_PATH"
-	# Transition to new domain.
-	exec $COMMAND_STR "$@" "--exec"
-	exit 0
+	if [ "$(( "$EXECUTE_STATUS" % 2  ))" -eq 1 ]; then
+		# Transition to new domain.
+		exec $OWN_PATH "$@" "--exec"
+		exit 0
+	else
+		echo "Error: File is not executable"
+	fi
 # If domain is correct list files is /var/log/
 else
 	ls -l /var/log/

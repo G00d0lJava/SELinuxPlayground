@@ -1,0 +1,76 @@
+#!/usr/sbin/nft -f
+
+table inet labeling {
+	secmark unlabeled_secmark {
+		"system_u:object_r:unlabeled_t:s0"
+	}
+	secmark ssh_server {
+		"system_u:object_r:ssh_server_packet_t:s0"
+	}
+	secmark tracert_client {
+		"system_u:object_r:traceroute_client_packet_t:s0"
+	}
+	secmark tracert_server {
+		"system_u:object_r:traceroute_server_packet_t:s0"
+	}
+	secmark http_client {
+		"system_u:object_r:http_client_packet_t:s0"
+	}
+	secmark dns_client {
+		"system_u:object_r:dns_client_packet_t:s0"
+	}
+	secmark git_client {
+		"system_u:object_r:git_client_packet_t:s0"
+	}
+	secmark git_server {
+		"system_u:object_r:git_server_packet_t:s0"
+	}
+	secmark ntp_client {
+		"system_u:object_r:ntp_client_packet_t:s0"
+	}
+	chain input {
+		type filter hook input priority filter;
+		# Define SECMARK of packet of newly discovered connection
+		ct state new {tcp,udp,sctp} dport ssh meta secmark set "ssh_server"
+		ct state new {tcp,udp,sctp} sport {http,https} meta secmark set "http_client"
+		# DNS
+		ct state new {tcp,udp} sport {53,853} meta secmark set "dns_client"
+		# Git
+		ct state new {tcp,udp} sport 9418 meta secmark set "git_client"
+		ct state new {tcp,udp} dport 9418 meta secmark set "git_server"
+		ct state new {tcp,udp} sport ntp meta secmark set "ntp_client"
+		jump connections
+		# A ping with a TTL smaller or equal to 1 is understood as an attempt to do a traceroute
+		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_client"
+		# Ping responses to subnet are seen as responses to a traceroute
+		ip protocol icmp icmp type echo-response ip saddr 192.168.2.0/24 meta secmark set "tracert_server"
+		jump logging
+	}
+	chain output {
+		type filter hook output priority filter;
+		ct state new {tcp,udp,sctp} sport ssh meta secmark set "ssh_server"
+		ct state new {tcp,udp,sctp} dport {http,https} meta secmark set "http_client"
+		# DNS
+		ct state new {tcp,udp} dport {53,853} meta secmark set "dns_client"
+		# Git
+		ct state new {tcp,udp} dport 9418 meta secmark set "git_client"
+		ct state new {tcp,udp} sport 9418 meta secmark set "git_server"
+		ct state new {tcp,udp} dport ntp meta secmark set "ntp_client"
+		jump connections
+		# Pings to subnet or responses to pings from subnet are seen as traceroute operations
+		ip protocol icmp icmp type echo-request ip daddr 192.168.2.0/24 meta secmark set "tracert_server"
+		ip protocol icmp icmp type echo-response ip daddr 192.168.2.0/24 meta secmark set "tracert_client"
+		jump logging
+	}
+	chain connections {
+		# Define SECMARK of connection as the one of the connection's first packet
+		ct state new ct secmark set meta secmark
+		# Define SECMARK of all subsequent packets of a connection as the SECMARK of the connection / first packet
+		ct state established,related meta secmark set ct secmark
+	}
+	chain logging {
+		# Log packets with a different type than unlabeled_t but only ten every second
+		meta secmark ne "unlabeled_secmark" limit rate 10/second log
+	}
+}
+

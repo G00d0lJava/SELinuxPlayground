@@ -105,9 +105,5 @@ table inet labeling {
 		# Define SECMARK of all subsequent packets of a connection as the SECMARK of the connection / first packet
 		ct state established,related meta secmark set ct secmark
 	}
-	chain logging {
-		# Log packets affected by rules but only ten every second
-		tcp dport { ssh, http, https, 53, 853, 9418, ntp } limit rate 10/second log
-	}
 }
 

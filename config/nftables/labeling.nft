@@ -31,36 +31,73 @@ table inet labeling {
 	chain input {
 		type filter hook input priority filter;
 		# Define SECMARK of packet of newly discovered connection
-		ct state new {tcp,udp,sctp} dport ssh meta secmark set "ssh_server"
-		ct state new {tcp,udp,sctp} sport {http,https} meta secmark set "http_client"
+		# SSH
+		ct state new tcp dport ssh meta secmark set "ssh_server"
+		ct state new udp dport ssh meta secmark set "ssh_server"
+		ct state new sctp dport ssh meta secmark set "ssh_server"
+		# HTTP 
+		ct state new tcp sport { http, https } meta secmark set "http_client"
+		ct state new udp sport { http, https } meta secmark set "http_client"
+		ct state new sctp sport { http, https } meta secmark set "http_client"
 		# DNS
-		ct state new {tcp,udp} sport {53,853} meta secmark set "dns_client"
+		ct state new tcp sport { 53, 853 } meta secmark set "dns_client"
+		ct state new udp sport { 53, 853 } meta secmark set "dns_client"
 		# Git
-		ct state new {tcp,udp} sport 9418 meta secmark set "git_client"
-		ct state new {tcp,udp} dport 9418 meta secmark set "git_server"
-		ct state new {tcp,udp} sport ntp meta secmark set "ntp_client"
+		ct state new tcp sport 9418 meta secmark set "git_client"
+		ct state new udp sport 9418 meta secmark set "git_client"
+		ct state new tcp dport 9418 meta secmark set "git_server"
+		ct state new udp dport 9418 meta secmark set "git_server"
+		# NTP
+		ct state new tcp sport ntp meta secmark set "ntp_client"
+		ct state new udp sport ntp meta secmark set "ntp_client"
 		jump connections
 		# A ping with a TTL smaller or equal to 1 is understood as an attempt to do a traceroute
-		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_client"
+		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server"
 		# Ping responses to subnet are seen as responses to a traceroute
-		ip protocol icmp icmp type echo-response ip saddr 192.168.2.0/24 meta secmark set "tracert_server"
-		jump logging
+		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.0/24 meta secmark set "tracert_client"
+		tcp dport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp dport { ssh } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp sport { http, https } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.9/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server" limit rate 10/second log flags all prefix "[SECMARK TEST]"
+
 	}
 	chain output {
 		type filter hook output priority filter;
-		ct state new {tcp,udp,sctp} sport ssh meta secmark set "ssh_server"
-		ct state new {tcp,udp,sctp} dport {http,https} meta secmark set "http_client"
+		# Define SECMARK of packet of newly discovered connection
+		# SSH
+		ct state new tcp sport ssh meta secmark set "ssh_server"
+		ct state new udp sport ssh meta secmark set "ssh_server"
+		ct state new sctp sport ssh meta secmark set "ssh_server"
+		# HTTP
+		ct state new tcp dport {http, https} meta secmark set "http_client"
+		ct state new udp dport {http, https} meta secmark set "http_client"
+		ct state new sctp dport {http, https} meta secmark set "http_client"
 		# DNS
-		ct state new {tcp,udp} dport {53,853} meta secmark set "dns_client"
+		ct state new tcp dport { 53, 853 } meta secmark set "dns_client"
+		ct state new udp dport { 53, 853 } meta secmark set "dns_client"
 		# Git
-		ct state new {tcp,udp} dport 9418 meta secmark set "git_client"
-		ct state new {tcp,udp} sport 9418 meta secmark set "git_server"
-		ct state new {tcp,udp} dport ntp meta secmark set "ntp_client"
+		ct state new tcp dport 9418 meta secmark set "git_client"
+		ct state new udp dport 9418 meta secmark set "git_client"
+		ct state new tcp sport 9418 meta secmark set "git_server"
+		ct state new udp sport 9418 meta secmark set "git_server"
+		# NTP
+		ct state new tcp dport ntp meta secmark set "ntp_client"
+		ct state new udp dport ntp meta secmark set "ntp_client"
 		jump connections
 		# Pings to subnet or responses to pings from subnet are seen as traceroute operations
-		ip protocol icmp icmp type echo-request ip daddr 192.168.2.0/24 meta secmark set "tracert_server"
-		ip protocol icmp icmp type echo-response ip daddr 192.168.2.0/24 meta secmark set "tracert_client"
-		jump logging
+		ip protocol icmp icmp type echo-request ip daddr 192.168.2.0/24 meta secmark set "tracert_client"
+		ip protocol icmp icmp type echo-reply ip daddr 192.168.2.0/24 meta secmark set "tracert_server"
+		tcp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp sport { ssh } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp dport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp dport { http, https } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		ip protocol icmp icmp type { echo-request, echo-reply } ip daddr 192.168.2.9/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
 	}
 	chain connections {
 		# Define SECMARK of connection as the one of the connection's first packet
@@ -69,8 +106,8 @@ table inet labeling {
 		ct state established,related meta secmark set ct secmark
 	}
 	chain logging {
-		# Log packets with a different type than unlabeled_t but only ten every second
-		meta secmark ne "unlabeled_secmark" limit rate 10/second log
+		# Log packets affected by rules but only ten every second
+		tcp dport { ssh, http, https, 53, 853, 9418, ntp } limit rate 10/second log
 	}
 }
 

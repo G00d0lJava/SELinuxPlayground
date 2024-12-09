@@ -16,6 +16,9 @@ table inet labeling {
 	secmark http_client {
 		"system_u:object_r:http_client_packet_t:s0"
 	}
+	secmark http_server {
+		"system_u:object_r:http_server_packet_t:s0"
+	}
 	secmark dns_client {
 		"system_u:object_r:dns_client_packet_t:s0"
 	}
@@ -39,6 +42,9 @@ table inet labeling {
 		ct state new tcp sport { http, https } meta secmark set "http_client"
 		ct state new udp sport { http, https } meta secmark set "http_client"
 		ct state new sctp sport { http, https } meta secmark set "http_client"
+		ct state new tcp dport 8080 meta secmark set "http_server"
+		ct state new udp dport 8080 meta secmark set "http_server"
+		ct state new sctp dport 8080 meta secmark set "http_server"
 		# DNS
 		ct state new tcp sport { 53, 853 } meta secmark set "dns_client"
 		ct state new udp sport { 53, 853 } meta secmark set "dns_client"
@@ -55,13 +61,13 @@ table inet labeling {
 		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server"
 		# Ping responses to subnet are seen as responses to a traceroute
 		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.0/24 meta secmark set "tracert_client"
-		tcp dport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp dport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		sctp dport { ssh } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp dport { ssh, 9418, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { ssh, 9418, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp dport { ssh, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		tcp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		udp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp sport { http, https } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.9/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.0/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server" limit rate 10/second log flags all prefix "[SECMARK TEST]"
 
 	}
@@ -73,9 +79,9 @@ table inet labeling {
 		ct state new udp sport ssh meta secmark set "ssh_server"
 		ct state new sctp sport ssh meta secmark set "ssh_server"
 		# HTTP
-		ct state new tcp dport {http, https} meta secmark set "http_client"
-		ct state new udp dport {http, https} meta secmark set "http_client"
-		ct state new sctp dport {http, https} meta secmark set "http_client"
+		ct state new tcp dport {http, https, 8080} meta secmark set "http_client"
+		ct state new udp dport {http, https, 8080} meta secmark set "http_client"
+		ct state new sctp dport {http, https, 8080} meta secmark set "http_client"
 		# DNS
 		ct state new tcp dport { 53, 853 } meta secmark set "dns_client"
 		ct state new udp dport { 53, 853 } meta secmark set "dns_client"
@@ -94,10 +100,10 @@ table inet labeling {
 		tcp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		udp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp sport { ssh } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		tcp dport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp dport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		sctp dport { http, https } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		ip protocol icmp icmp type { echo-request, echo-reply } ip daddr 192.168.2.9/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp dport { http, https, 53, 853, 9418, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { http, https, 53, 853, 9418, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		sctp dport { http, https, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		ip protocol icmp icmp type { echo-request, echo-reply } ip daddr 192.168.2.0/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
 	}
 	chain connections {
 		# Define SECMARK of connection as the one of the connection's first packet

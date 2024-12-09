@@ -1,0 +1,10 @@
+
+policy_module(custom_allow_sockets,1.0)
+
+gen_require(`
+	type user_t;
+	type http_cache_port_t;
+')
+
+allow user_t http_cache_port_t : { tcp_socket udp_socket } name_bind;
+

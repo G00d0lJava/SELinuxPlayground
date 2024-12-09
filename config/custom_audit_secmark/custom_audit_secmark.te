@@ -3,11 +3,11 @@ policy_module(custom_audit_secmark,1.0)
 
 gen_require(`
 	type unconfined_t;
-	type ssh_exec_t;
+	type sshd_t;
 	type traceroute_exec_t;
 	type ping_exec_t;
 	type bin_t;
-	type chronyd_exec_t;
+	type chronyd_t;
 	type systemd_resolved_exec_t;
 	type mozilla_t;
 	type unlabeled_t;
@@ -21,12 +21,11 @@ gen_require(`
 	type ntp_client_packet_t;
 ')
 
-auditallow ssh_exec_t ssh_server_packet_t : packet { send recv };
+auditallow sshd_t ssh_server_packet_t : packet { send recv };
 auditallow { traceroute_exec_t ping_exec_t } { traceroute_client_packet_t traceroute_server_packet_t } : packet { send recv };
 auditallow bin_t { http_client_packet_t git_client_packet_t git_server_packet_t } : packet { send recv };
-auditallow chronyd_exec_t ntp_client_packet_t : packet { send recv };
+auditallow chronyd_t ntp_client_packet_t : packet { send recv };
 auditallow systemd_resolved_exec_t dns_client_packet_t : packet { send recv };
 auditallow mozilla_t http_client_packet_t : packet { send recv };
-# To show that other packets are "unlabeled"
-auditallow bin_t unlabeled_t : packet { send recv };
+auditallow unconfined_t { unlabeled_t ssh_server_packet_t traceroute_client_packet_t traceroute_server_packet_t http_client_packet_t git_client_packet_t git_server_packet_t ntp_client_packet_t dns_client_packet_t } : packet { send recv };
 

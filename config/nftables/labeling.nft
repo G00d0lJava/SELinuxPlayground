@@ -22,12 +22,6 @@ table inet labeling {
 	secmark dns_client {
 		"system_u:object_r:dns_client_packet_t:s0"
 	}
-	secmark git_client {
-		"system_u:object_r:git_client_packet_t:s0"
-	}
-	secmark git_server {
-		"system_u:object_r:git_server_packet_t:s0"
-	}
 	secmark ntp_client {
 		"system_u:object_r:ntp_client_packet_t:s0"
 	}
@@ -48,24 +42,21 @@ table inet labeling {
 		# DNS
 		ct state new tcp sport { 53, 853 } meta secmark set "dns_client"
 		ct state new udp sport { 53, 853 } meta secmark set "dns_client"
-		# Git
-		ct state new tcp sport 9418 meta secmark set "git_client"
-		ct state new udp sport 9418 meta secmark set "git_client"
-		ct state new tcp dport 9418 meta secmark set "git_server"
-		ct state new udp dport 9418 meta secmark set "git_server"
 		# NTP
 		ct state new tcp sport ntp meta secmark set "ntp_client"
 		ct state new udp sport ntp meta secmark set "ntp_client"
+		# Label connections and subsequent packages
 		jump connections
 		# A ping with a TTL smaller or equal to 1 is understood as an attempt to do a traceroute
 		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server"
 		# Ping responses to subnet are seen as responses to a traceroute
 		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.0/24 meta secmark set "tracert_client"
-		tcp dport { ssh, 9418, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp dport { ssh, 9418, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		# Logging for debugging
+		tcp dport { ssh, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { ssh, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp dport { ssh, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		tcp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp sport { http, https, 53, 853, 9418, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp sport { http, https, 53, 853, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp sport { http, https, 53, 853, ntp } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp sport { http, https } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		ip protocol icmp icmp type echo-reply ip saddr 192.168.2.0/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		ip protocol icmp icmp type echo-request ip ttl le 1 meta secmark set "tracert_server" limit rate 10/second log flags all prefix "[SECMARK TEST]"
@@ -85,23 +76,20 @@ table inet labeling {
 		# DNS
 		ct state new tcp dport { 53, 853 } meta secmark set "dns_client"
 		ct state new udp dport { 53, 853 } meta secmark set "dns_client"
-		# Git
-		ct state new tcp dport 9418 meta secmark set "git_client"
-		ct state new udp dport 9418 meta secmark set "git_client"
-		ct state new tcp sport 9418 meta secmark set "git_server"
-		ct state new udp sport 9418 meta secmark set "git_server"
 		# NTP
 		ct state new tcp dport ntp meta secmark set "ntp_client"
 		ct state new udp dport ntp meta secmark set "ntp_client"
+		# Label connections and subsequent packages
 		jump connections
 		# Pings to subnet or responses to pings from subnet are seen as traceroute operations
 		ip protocol icmp icmp type echo-request ip daddr 192.168.2.0/24 meta secmark set "tracert_client"
 		ip protocol icmp icmp type echo-reply ip daddr 192.168.2.0/24 meta secmark set "tracert_server"
-		tcp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp sport { ssh, 9418 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		# Logging for debugging
+		tcp sport ssh limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp sport ssh limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp sport { ssh } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		tcp dport { http, https, 53, 853, 9418, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
-		udp dport { http, https, 53, 853, 9418, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		tcp dport { http, https, 53, 853, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
+		udp dport { http, https, 53, 853, ntp, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		sctp dport { http, https, 8080 } limit rate 10/second log flags all prefix "[SECMARK TEST]"
 		ip protocol icmp icmp type { echo-request, echo-reply } ip daddr 192.168.2.0/24 limit rate 10/second log flags all prefix "[SECMARK TEST]"
 	}
